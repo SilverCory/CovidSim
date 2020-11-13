@@ -1,0 +1,29 @@
+version: "3.8"
+services:
+  covidsim:
+    depends_on:
+      - redis
+      - mariadb
+    build: .
+    env_file:
+      - dev.env
+    command: ["/wait-for-it.sh", "mariadb:3306", "--", "/go/bin/covidsimbot"]
+    restart: on-failure
+  redis:
+    image: "redis:alpine"
+    restart: on-failure
+  mariadb:
+    image: mariadb:10.2
+    environment:
+      MYSQL_ROOT_PASSWORD: ''
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'true'
+      MYSQL_DATABASE: covid_sim
+      MYSQL_USER: covid_sim
+      MYSQL_PASSWORD: password
+    restart: on-failure
+    volumes:
+      - ${PWD}/mariadb:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      timeout: 20s
+      retries: 15
