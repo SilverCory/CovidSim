@@ -6,7 +6,7 @@ services:
       - mariadb
     build: .
     env_file:
-      - dev.env
+      - .env
     command: ["/wait-for-it.sh", "mariadb:3306", "--", "/go/bin/covidsimbot"]
     restart: on-failure
   redis:
