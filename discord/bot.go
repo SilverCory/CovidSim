@@ -91,7 +91,7 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 			return
 		}
 
-		_, _ = s.ChannelMessageSend(ch.ID, "https://discord.com/oauth2/authorize?client_id=776788476611264583&scope=bot&permissions=76800")
+		_, _ = s.ChannelMessageSend(ch.ID, "https://discord.gg/a6BKEXu7JQ\nhttps://discord.com/oauth2/authorize?client_id=776788476611264583&scope=bot&permissions=76800")
 		return
 	}
 
