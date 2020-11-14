@@ -206,21 +206,19 @@ func (b *Bot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 	}
 
-	var hasCovid bool
-	hasCovid, err = author.ContractCovid(lastUser, m.GuildID, m.ChannelID, m.ID)
+	var contractedCovid bool
+	contractedCovid, err = author.ContractCovid(lastUser, m.GuildID, m.ChannelID, m.ID)
 	if err != nil {
 		fmt.Printf("Unable to contract covid for user %s from %s: %v\n", author.ID, lastUser.ID, err)
 		return
 	}
 
-	if hasCovid {
-		// TODO I want to webhook this for shits and giggles.
-		// Call webhook here..
+	if contractedCovid {
 		go b.infectionHook(m)
 	}
 
 	if err := b.storage.SaveUser(author); err != nil {
-		// TODO err log.
+		fmt.Printf("Unable to save covid user %s: %v", author.ID, err)
 		return
 	}
 
