@@ -39,6 +39,8 @@ func main() {
 		cfg.DiscordBotToken,
 		store,
 		ca,
+		cfg.DiscordWebhookID,
+		cfg.DiscordWebhookToken,
 	)
 	if err != nil {
 		fmt.Printf("Unable to open discord: %v\n", err)

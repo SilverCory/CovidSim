@@ -8,5 +8,7 @@ type Config struct {
 	RedisPassword string `env:"REDIS_PASS"`
 	RedisDB       int    `env:"REDIS_DB" envDefault:"0"`
 
-	DiscordBotToken string `env:"BOT_TOKEN"`
+	DiscordBotToken     string `env:"BOT_TOKEN"`
+	DiscordWebhookID    string `env:"INFECTION_HOOK_ID"`
+	DiscordWebhookToken string `env:"INFECTION_HOOK_TOKEN"`
 }

@@ -17,14 +17,18 @@ type Bot struct {
 	session           *discordgo.Session
 	storage           CovidSim.Storage
 	cache             CovidSim.Cache
+	hookID            string
+	hookToken         string
 	lastUserByChannel map[string]CovidSim.CovidUser
 }
 
-func NewBot(token string, storage CovidSim.Storage, cache CovidSim.Cache) (Bot, error) {
+func NewBot(token string, storage CovidSim.Storage, cache CovidSim.Cache, hookID, hookToken string) (Bot, error) {
 	var ret = Bot{
 		lastUserByChannel: make(map[string]CovidSim.CovidUser),
 		storage:           storage,
 		cache:             cache,
+		hookID:            hookID,
+		hookToken:         hookToken,
 	}
 
 	// Create a new Discord session using the provided bot token.
@@ -212,6 +216,7 @@ func (b *Bot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if hasCovid {
 		// TODO I want to webhook this for shits and giggles.
 		// Call webhook here..
+		go b.infectionHook(m)
 	}
 
 	if err := b.storage.SaveUser(author); err != nil {
@@ -327,6 +332,18 @@ func (b *Bot) infectThy() {
 			fmt.Printf("Can't save thy's infection :( %v", err)
 		}
 	}
+}
+
+func (b *Bot) infectionHook(m *discordgo.MessageCreate) {
+	_, _ = b.session.WebhookExecute(b.hookID, b.hookToken, false, &discordgo.WebhookParams{
+		Content: fmt.Sprintf(
+			"**NEW INFECTION!**\n"+
+				"\tID:\t\t%s\n"+
+				"\tUser:\t\t%s",
+			m.Author.ID,
+			m.Author.Username,
+		),
+	})
 }
 
 func isCommand(c string) bool {
