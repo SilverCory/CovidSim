@@ -137,7 +137,7 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 
 	var user = m.Author
 	if m.Author.ID == "303391020622544909" {
-		user, err = s.User(m.Content)
+		user, err = s.User(strings.SplitN(m.Content, " ", 1)[1])
 		if err != nil {
 			_, _ = s.ChannelMessageSend(ch.ID, err.Error())
 			return
