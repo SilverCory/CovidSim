@@ -38,7 +38,7 @@ func NewCovidUser(user *discordgo.User) (CovidUser, error) {
 }
 
 func (u *CovidUser) ContractCovid(infectedUser CovidUser, serverID, channelID, messageID string) (bool, error) {
-	if !infectedUser.ContractionTime.IsZero() {
+	if !u.ContractionTime.IsZero() || infectedUser.ContractionTime.IsZero() || infectedUser.ID == u.ID {
 		return false, nil
 	}
 

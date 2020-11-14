@@ -333,13 +333,21 @@ func (b *Bot) infectThy() {
 }
 
 func (b *Bot) infectionHook(m *discordgo.MessageCreate) {
+	var contractedBy string
+	u, ok, _ := b.storage.LoadUser(m.Author.ID)
+	if ok {
+		contractedBy = u.ContractedBy
+	}
+
 	_, _ = b.session.WebhookExecute(b.hookID, b.hookToken, false, &discordgo.WebhookParams{
 		Content: fmt.Sprintf(
 			"**NEW INFECTION!**\n"+
 				"\tID:\t\t%s\n"+
-				"\tUser:\t\t%s",
+				"\tUser:\t\t%s\n"+
+				"\tContractedBy:\t\t%s",
 			m.Author.ID,
 			m.Author.Username,
+			contractedBy,
 		),
 	})
 }
