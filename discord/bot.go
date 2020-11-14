@@ -6,6 +6,7 @@ import (
 	"github.com/SilverCory/CovidSim"
 	"github.com/SilverCory/CovidSim/mask"
 	"github.com/bwmarrin/discordgo"
+	"github.com/kettek/apng"
 	"image"
 	"image/gif"
 	"image/png"
@@ -134,7 +135,7 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 		_, _ = s.ChannelMessageSend(ch.ID, "Damn looks like I'm out.. :joy: (I broke, try later).")
 	}
 
-	format, img, g, err := b.getAvatar(m.Author)
+	format, img, ap, g, err := b.getAvatar(m.Author)
 	if err != nil {
 		fmt.Printf("Unable to get avatar for %s: %v\n", id, err)
 		fail()
@@ -146,6 +147,13 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 		format = "gif"
 		if err := gif.EncodeAll(buf, mask.AddMaskGIF(g)); err != nil {
 			fmt.Printf("Unable to encode gif: %v\n", err)
+			fail()
+			return
+		}
+	} else if ap != nil {
+		format = "gif"
+		if err := apng.Encode(buf, mask.AddMaskAPNG(*ap)); err != nil {
+			fmt.Printf("Unable to encode apng: %v\n", err)
 			fail()
 			return
 		}
@@ -257,21 +265,29 @@ func (b *Bot) wearingMask(userID string) (bool, error) {
 	return mask.WearingMask(img), nil
 }
 
-func (b *Bot) getAvatar(u *discordgo.User) (string, image.Image, *gif.GIF, error) {
+func (b *Bot) getAvatar(u *discordgo.User) (string, image.Image, *apng.APNG, *gif.GIF, error) {
+	// TODO clean this up.
 	body, err := b.session.RequestWithBucketID("GET", discordgo.EndpointUserAvatar(u.ID, u.Avatar)+"?size=1024", nil, discordgo.EndpointUserAvatar("", ""))
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
+	body = bytes.Replace(body, []byte("\\x89PNG\\r\\n"), []byte("GIF89a"), 1)
 	var buf = bytes.NewBuffer(body)
 
 	// Is gif
 	if strings.HasPrefix(u.Avatar, "a_") {
 		g, err := gif.DecodeAll(buf)
-		return "gif", nil, g, err
+
+		//if err != nil && strings.Contains(err.Error(), "format \"\\x89PNG\\r\\n") {
+		//	ap, err := apng.DecodeAll(buf)
+		//	return "apng", nil, &ap, nil, err
+		//}
+
+		return "gif", nil, nil, g, err
 	}
 
 	img, f, err := image.Decode(buf)
-	return f, img, nil, err
+	return f, img, nil, nil, err
 }
 
 func (b *Bot) doShtatus(s *discordgo.Session, m *discordgo.MessageCreate) {

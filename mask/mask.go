@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/fogleman/gg"
+	"github.com/kettek/apng"
 	"github.com/nfnt/resize"
 	"github.com/vitali-fedulov/images"
 	"image"
@@ -64,6 +65,14 @@ func AddMaskGIF(source *gif.GIF) *gif.GIF {
 		}
 
 		source.Image[i] = out.(*image.Paletted)
+	}
+
+	return source
+}
+
+func AddMaskAPNG(source apng.APNG) apng.APNG {
+	for i, img := range source.Frames {
+		source.Frames[i].Image = AddMask(img.Image)
 	}
 
 	return source
