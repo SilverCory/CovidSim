@@ -250,15 +250,27 @@ func (b *Bot) getAvatar(u *discordgo.User) (string, image.Image, *gif.GIF, error
 
 func (b *Bot) doShtatus(s *discordgo.Session, m *discordgo.MessageCreate) {
 	var statUser *discordgo.User
-	if len(m.Mentions) != 1 {
-		if len(m.Mentions) == 0 {
+
+	parts := strings.SplitN(m.Content, " ", 2)
+	if len(parts) != 2 {
+		if len(parts) == 1 {
 			statUser = m.Author
 		} else {
 			_, _ = s.ChannelMessage(m.ChannelID, "!shtatus @someone")
 			return
 		}
 	} else {
-		statUser = m.Mentions[0]
+		id := parts[1]
+		if strings.HasPrefix(id, "<@") {
+			id = strings.TrimPrefix("<@", strings.TrimSuffix(id, ">"))
+		}
+
+		var err error
+		statUser, err = s.User(id)
+		if err != nil {
+			s.ChannelMessage(m.ChannelID, err.Error())
+			return
+		}
 	}
 
 	u, _, err := b.storage.LoadUser(statUser.ID)
