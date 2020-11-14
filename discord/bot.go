@@ -281,7 +281,7 @@ func (b *Bot) getAvatar(u *discordgo.User) (string, image.Image, *apng.APNG, *gi
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
-	body = bytes.Replace(body, []byte("\\x89PNG\\r\\n"), []byte("GIF89a"), 1)
+	body = bytes.Replace(body, []byte("\x89PNG\r\n"), []byte("GIF89a"), 1)
 	var buf = bytes.NewBuffer(body)
 
 	// Is gif
