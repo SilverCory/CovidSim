@@ -94,6 +94,15 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 		return
 	}
 
+	u, ok, _ := b.storage.LoadUser(m.Author.ID)
+	if ok && !u.ContractionTime.IsZero() {
+		_, _ = s.ChannelMessageSend(
+			ch.ID,
+			"LMAO it's too late for you. You're already infected :joy::frowning:\n"+
+				"Here's a mask anyway, not that it's of any use.",
+		)
+	}
+
 	chill, err := b.cache.GetMaskCooldown(id)
 	if err != nil {
 		fmt.Printf("getting cooldown failed for %s: %w", id)
@@ -214,7 +223,7 @@ func (b *Bot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	if contractedCovid {
-		go b.infectionHook(m)
+		go b.infectionHook(m, author)
 	}
 
 	if err := b.storage.SaveUser(author); err != nil {
@@ -332,13 +341,7 @@ func (b *Bot) infectThy() {
 	}
 }
 
-func (b *Bot) infectionHook(m *discordgo.MessageCreate) {
-	var contractedBy string
-	u, ok, _ := b.storage.LoadUser(m.Author.ID)
-	if ok {
-		contractedBy = u.ContractedBy
-	}
-
+func (b *Bot) infectionHook(m *discordgo.MessageCreate, infectedUser CovidSim.CovidUser) {
 	_, _ = b.session.WebhookExecute(b.hookID, b.hookToken, false, &discordgo.WebhookParams{
 		Content: fmt.Sprintf(
 			"**NEW INFECTION!**\n"+
@@ -347,7 +350,7 @@ func (b *Bot) infectionHook(m *discordgo.MessageCreate) {
 				"\tContractedBy:\t\t%s",
 			m.Author.ID,
 			m.Author.Username,
-			contractedBy,
+			infectedUser.ContractedBy,
 		),
 	})
 }
