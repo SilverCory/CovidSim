@@ -277,22 +277,15 @@ func (b *Bot) wearingMask(userID string) (bool, error) {
 
 func (b *Bot) getAvatar(u *discordgo.User) (string, image.Image, *apng.APNG, *gif.GIF, error) {
 	// TODO clean this up.
-	body, err := b.session.RequestWithBucketID("GET", discordgo.EndpointUserAvatar(u.ID, u.Avatar)+"?size=1024", nil, discordgo.EndpointUserAvatar("", ""))
+	body, err := b.session.RequestWithBucketID("GET", u.AvatarURL("1024"), nil, discordgo.EndpointUserAvatar("", ""))
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
-	body = bytes.Replace(body, []byte("\x89PNG\r\n"), []byte("GIF89a"), 1)
 	var buf = bytes.NewBuffer(body)
 
 	// Is gif
 	if strings.HasPrefix(u.Avatar, "a_") {
 		g, err := gif.DecodeAll(buf)
-
-		//if err != nil && strings.Contains(err.Error(), "format \"\\x89PNG\\r\\n") {
-		//	ap, err := apng.DecodeAll(buf)
-		//	return "apng", nil, &ap, nil, err
-		//}
-
 		return "gif", nil, nil, g, err
 	}
 

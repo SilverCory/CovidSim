@@ -1,11 +1,13 @@
 package mask
 
 import (
+	"fmt"
 	"github.com/kettek/apng"
 	"image"
 	"image/gif"
 	_ "image/jpeg"
 	"image/png"
+	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -83,6 +85,7 @@ func TestAddMaskGIF(t *testing.T) {
 
 	_ = f.Close()
 }
+
 func TestAddMaskAPNG(t *testing.T) {
 	resp, err := http.Get("https://cdn.discordapp.com/avatars/159767754960928768/a_87c818a999682a3e34471f4b7d178a14.gif?size=1024")
 	if err != nil {
@@ -93,6 +96,16 @@ func TestAddMaskAPNG(t *testing.T) {
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		t.Fatalf("Status code was not 2xx, instead got %d", resp.StatusCode)
 		return
+	}
+
+	var pngHeader = "\x89PNG\r\n\x1a\n"
+	var tmp [700]byte
+	_, err = io.ReadFull(resp.Body, tmp[:len(pngHeader)])
+	if err != nil {
+		fmt.Println(err)
+	}
+	if string(tmp[:len(pngHeader)]) != pngHeader {
+		fmt.Printf("not a PNG file %q\n", tmp)
 	}
 
 	img, err := apng.DecodeAll(resp.Body)
