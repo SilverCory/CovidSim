@@ -46,7 +46,6 @@ func (u *CovidUser) ContractCovid(infectedUser CovidUser, serverID, channelID, m
 	var roll = float32(rand.Intn(10000)) / 100
 	roll -= float32(u.CovidEncounter) * (ContractionChance / 2)
 	u.CovidEncounter += 1
-	fmt.Println(roll)
 	if roll < ContractionChance {
 		u.ContractionTime = time.Now()
 		u.ContractedBy = infectedUser.ID
