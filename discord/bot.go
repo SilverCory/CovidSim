@@ -93,6 +93,7 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 
 		_, _ = s.ChannelMessageSendComplex(ch.ID, &discordgo.MessageSend{
 			Content: "https://discord.com/oauth2/authorize?client_id=776788476611264583&scope=bot&permissions=76800\nhttps://discord.gg/a6BKEXu7JQ",
+			Embed:   &discordgo.MessageEmbed{},
 		})
 		return
 	}
