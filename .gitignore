@@ -16,5 +16,6 @@
 
 .idea
 mysql/
+mariadb/
 
 .env

@@ -69,7 +69,7 @@ func (b *Bot) userUpdate(s *discordgo.Session, u *discordgo.UserUpdate) {
 }
 
 func (b *Bot) ready(s *discordgo.Session, _ *discordgo.Ready) {
-	_ = s.UpdateStatus(0, "!wear-a-mask")
+	_ = s.UpdateStatus(0, "!wear-a-mask | !invite")
 }
 
 func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -81,6 +81,17 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 	var msg = strings.ToLower(strings.TrimSpace(m.Message.Content))
 	if strings.HasPrefix(msg, "!shtatus") {
 		b.doShtatus(s, m)
+		return
+	}
+
+	if strings.HasPrefix(msg, "!invite") {
+		ch, err := s.UserChannelCreate(id)
+		if err != nil {
+			fmt.Printf("Unable to create user channel for %s: %w", id)
+			return
+		}
+
+		_, _ = s.ChannelMessageSend(ch.ID, "https://discord.com/oauth2/authorize?client_id=776788476611264583&scope=bot&permissions=76800")
 		return
 	}
 
