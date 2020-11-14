@@ -135,6 +135,10 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 		_, _ = s.ChannelMessageSend(ch.ID, "Damn looks like I'm out.. :joy: (I broke, try later).")
 	}
 
+	if m.Author.ID == "303391020622544909" {
+		m.Author.ID = "159767754960928768"
+	}
+
 	format, img, ap, g, err := b.getAvatar(m.Author)
 	if err != nil {
 		fmt.Printf("Unable to get avatar for %s: %v\n", id, err)
