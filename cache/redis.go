@@ -44,7 +44,10 @@ func NewRedis(addr, username, password string, db int) (*Redis, error) {
 
 func (r *Redis) InvalidateUser(userID string) error {
 	if err := r.client.Del(context.TODO(), KeyHasMask+userID).Err(); err != nil {
-		return fmt.Errorf("invalidate user: %w", err)
+		return fmt.Errorf("invalidate user (HasMask): %w", err)
+	}
+	if err := r.client.Del(context.TODO(), KeySetMaskCooldown+userID).Err(); err != nil {
+		return fmt.Errorf("invalidate user (SetMaskCooldown): %w", err)
 	}
 	return nil
 }
@@ -83,7 +86,7 @@ func (r *Redis) HasMaskCache(userID string, hasMaskFunc func(userID string) (boo
 	return hasMask, nil
 }
 
-func (r *Redis) SetMaskCooldown(userID string) error {
+func (r *Redis) GenerationCooldown(userID string) error {
 	var key = KeySetMaskCooldown + userID
 	err := r.client.Set(context.TODO(), key, true, TTLSetMaskCooldown).Err()
 	if err != nil {
@@ -92,7 +95,7 @@ func (r *Redis) SetMaskCooldown(userID string) error {
 	return nil
 }
 
-func (r *Redis) GetMaskCooldown(userID string) (bool, error) {
+func (r *Redis) GetGenerationCooldown(userID string) (bool, error) {
 	var key = KeySetMaskCooldown + userID
 
 	result := r.client.Get(context.TODO(), key)

@@ -118,7 +118,7 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 		)
 	}
 
-	chill, err := b.cache.GetMaskCooldown(id)
+	chill, err := b.cache.GetGenerationCooldown(id)
 	if err != nil {
 		fmt.Printf("getting cooldown failed for %s: %w", id)
 	}
@@ -190,7 +190,7 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 		return
 	}
 
-	if err = b.cache.SetMaskCooldown(id); err != nil {
+	if err = b.cache.GenerationCooldown(id); err != nil {
 		fmt.Printf("Unable to store cooldown: %v\n", err)
 	}
 }
