@@ -23,7 +23,7 @@ func main() {
 		return
 	}
 
-	store, err := storage.NewMySQL(cfg.MySQLDSN)
+	store, err := storage.NewMySQL(l, cfg.MySQLDSN)
 	if err != nil {
 		l.Error().Err(err).Msg("unable to open storage.")
 		os.Exit(1)

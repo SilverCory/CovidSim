@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/SilverCory/CovidSim"
+	"github.com/rs/zerolog"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -16,11 +17,13 @@ type MySQL struct {
 	db *gorm.DB
 }
 
-func NewMySQL(dsn string) (*MySQL, error) {
+func NewMySQL(l zerolog.Logger, dsn string) (*MySQL, error) {
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("unable to open gorm: %w", err)
 	}
+
+	db.Logger = &gormLogger{zl: l}
 
 	if err := db.AutoMigrate(&CovidSim.CovidUser{}); err != nil {
 		return nil, fmt.Errorf("unable to migrate coviduser: %w", err)
