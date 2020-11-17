@@ -22,6 +22,7 @@ type CovidUser struct {
 	ContractedServer  string    `json:"contracted_server"`
 	ContractedChannel string    `json:"contracted_channel"`
 	ContractedMessage string    `json:"contracted_message"`
+	Tested            bool      `json:"tested"`
 }
 
 func NewCovidUser(user *discordgo.User) (CovidUser, error) {
