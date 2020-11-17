@@ -7,7 +7,7 @@ import (
 	"github.com/SilverCory/CovidSim/mask"
 	"github.com/bwmarrin/discordgo"
 	"github.com/kettek/apng"
-	"image"
+	"github.com/rs/zerolog"
 	"image/gif"
 	"image/png"
 	"strings"
@@ -15,6 +15,7 @@ import (
 )
 
 type Bot struct {
+	l                 zerolog.Logger
 	session           *discordgo.Session
 	storage           CovidSim.Storage
 	cache             CovidSim.Cache
@@ -23,8 +24,9 @@ type Bot struct {
 	lastUserByChannel map[string]CovidSim.CovidUser
 }
 
-func NewBot(token string, storage CovidSim.Storage, cache CovidSim.Cache, hookID, hookToken string) (Bot, error) {
+func NewBot(l zerolog.Logger, token string, storage CovidSim.Storage, cache CovidSim.Cache, hookID, hookToken string) (Bot, error) {
 	var ret = Bot{
+		l:                 l,
 		lastUserByChannel: make(map[string]CovidSim.CovidUser),
 		storage:           storage,
 		cache:             cache,
@@ -35,37 +37,36 @@ func NewBot(token string, storage CovidSim.Storage, cache CovidSim.Cache, hookID
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
-		return Bot{}, fmt.Errorf("error creating Discord session: %w", err)
+		return Bot{}, fmt.Errorf("NewBot: error creating Discord session: %w", err)
 	}
 	ret.session = dg
 
-	// Register the messageCreate func as a callback for MessageCreate events.
-	dg.AddHandler(ret.messageCreate)
-	dg.AddHandler(ret.messageCreateCmd)
+	dg.AddHandler(ret.infectionHandler)
+	dg.AddHandler(ret.messageCommandHandler)
 	dg.AddHandler(ret.userUpdate)
 	dg.AddHandler(ret.ready)
 	dg.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages)
 
 	err = dg.Open()
 	if err != nil {
-		return Bot{}, fmt.Errorf("error opening connection: %w", err)
+		return Bot{}, fmt.Errorf("NewBot: error opening connection: %w", err)
 	}
 
-	ret.infectThy()
+	ret.infectThy() // F
 
 	return ret, nil
 }
 
 func (b *Bot) Close() error {
 	if err := b.session.Close(); err != nil {
-		return fmt.Errorf("discord bot Close error: %w", err)
+		return fmt.Errorf("Close: discord bot Close error: %w", err)
 	}
 	return nil
 }
 
 func (b *Bot) userUpdate(s *discordgo.Session, u *discordgo.UserUpdate) {
 	if err := b.cache.InvalidateUser(u.ID); err != nil {
-		fmt.Printf("Unable to invalidate a user on update: %v\n", err)
+		b.l.Err(err).Str("user_id", u.ID).Msg("userUpdate failed")
 	}
 }
 
@@ -73,10 +74,15 @@ func (b *Bot) ready(s *discordgo.Session, _ *discordgo.Ready) {
 	_ = s.UpdateStatus(0, "!wear-a-mask | !invite")
 }
 
-func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate) {
+func (b *Bot) messageCommandHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.ID == s.State.User.ID || m.Author.Bot {
 		return
 	}
+	var l = b.l.With().
+		Str("user_id", m.ID).
+		Str("channel_id", m.ChannelID).
+		Str("guild_id", m.GuildID).
+		Logger()
 
 	var id = m.Author.ID
 	var msg = strings.ToLower(strings.TrimSpace(m.Message.Content))
@@ -86,16 +92,7 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 	}
 
 	if strings.HasPrefix(msg, "!invite") {
-		ch, err := s.UserChannelCreate(id)
-		if err != nil {
-			fmt.Printf("Unable to create user channel for %s: %w", id)
-			return
-		}
-
-		_, _ = s.ChannelMessageSendComplex(ch.ID, &discordgo.MessageSend{
-			Content: "https://discord.com/oauth2/authorize?client_id=776788476611264583&scope=bot&permissions=76800\nhttps://discord.gg/a6BKEXu7JQ",
-			Embed:   &discordgo.MessageEmbed{},
-		})
+		b.doInvite(s, m)
 		return
 	}
 
@@ -105,11 +102,12 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 
 	ch, err := s.UserChannelCreate(id)
 	if err != nil {
-		fmt.Printf("Unable to create user channel for %s: %w", id)
+		l.Err(err).Msg("messageCommandHandler: channel create failed.")
 		return
 	}
 
 	u, ok, _ := b.storage.LoadUser(m.Author.ID)
+	// If we are going to offer vote testing then we shouldn't do this.
 	if ok && !u.ContractionTime.IsZero() {
 		_, _ = s.ChannelMessageSend(
 			ch.ID,
@@ -120,7 +118,8 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 
 	chill, err := b.cache.GetGenerationCooldown(id)
 	if err != nil {
-		fmt.Printf("getting cooldown failed for %s: %w", id)
+		l.Err(err).Msg("messageCommandHandler: cache get generation cooldown failed.")
+		return
 	}
 	if chill {
 		_, _ = s.ChannelMessageSend(
@@ -130,13 +129,14 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 		)
 		return
 	}
+
 	_, _ = s.ChannelMessageSend(ch.ID, "Getting you a mask... :timer:")
-	fail := func() {
-		_, _ = s.ChannelMessageSend(ch.ID, "Damn looks like I'm out.. :joy: (I broke, try later).")
+	fail := func(err error) {
+		_, _ = s.ChannelMessageSend(ch.ID, "Damn looks like I'm out.. :joy: (I broke, try later).\n\n"+err.Error())
 	}
 
 	var user = m.Author
-	if m.Author.ID == "303391020622544909" {
+	if m.Author.ID == "303391020622544909" { // Cory
 		user, err = s.User(strings.SplitN(m.Content, " ", 2)[1])
 		if err != nil {
 			_, _ = s.ChannelMessageSend(ch.ID, err.Error())
@@ -147,8 +147,8 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 
 	format, img, ap, g, err := b.getAvatar(user)
 	if err != nil {
-		fmt.Printf("Unable to get avatar for %s: %v\n", id, err)
-		fail()
+		l.Err(err).Msg("messageCommandHandler: getAvatar failed.")
+		fail(err)
 		return
 	}
 
@@ -156,22 +156,22 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 	if g != nil {
 		format = "gif"
 		if err := gif.EncodeAll(buf, mask.AddMaskGIF(g)); err != nil {
-			fmt.Printf("Unable to encode gif: %v\n", err)
-			fail()
+			l.Err(err).Msg("messageCommandHandler: gif encode failed.")
+			fail(err)
 			return
 		}
 	} else if ap != nil {
 		format = "gif"
 		if err := apng.Encode(buf, mask.AddMaskAPNG(*ap)); err != nil {
-			fmt.Printf("Unable to encode apng: %v\n", err)
-			fail()
+			l.Err(err).Msg("messageCommandHandler: apng encode failed.")
+			fail(err)
 			return
 		}
 	} else {
 		format = "png"
 		if err := png.Encode(buf, mask.AddMask(img)); err != nil {
-			fmt.Printf("Unable to encode png: %v\n", err)
-			fail()
+			l.Err(err).Msg("messageCommandHandler: png encode failed.")
+			fail(err)
 			return
 		}
 	}
@@ -186,191 +186,14 @@ func (b *Bot) messageCreateCmd(s *discordgo.Session, m *discordgo.MessageCreate)
 	})
 	if err != nil {
 		fmt.Printf("Unable to send complex avatar message: %v\n", err)
-		fail()
+		l.Err(err).Msg("messageCommandHandler: channel message send complex failed.")
+		fail(err)
 		return
 	}
 
 	if err = b.cache.GenerationCooldown(id); err != nil {
-		fmt.Printf("Unable to store cooldown: %v\n", err)
-	}
-}
-
-func (b *Bot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	if m.Author.ID == s.State.User.ID || m.Author.Bot {
-		return
-	}
-
-	var content = m.Message.Content
-	if isCommand(content) {
-		return // I guess we want to ignore commands?
-	}
-
-	wearingMask, err := b.cache.HasMaskCache(m.Author.ID, b.wearingMask)
-	if err != nil {
-		fmt.Printf("unable to check whether user %s is wearing mask: %v\n", m.Author.ID, err)
-		return
-	}
-	if wearingMask {
-		return // Don't take it off..!
-	}
-
-	var lastUser, ok = b.lastUserByChannel[m.ChannelID]
-	if !ok {
-		var st, err = s.ChannelMessages(m.ChannelID, 1, m.ID, "", "")
-		if err != nil {
-			fmt.Printf("Unable to load channel messages for %s before msg %s: %v\n", m.ChannelID, m.ID, err)
-			return
-		}
-		if len(st) == 1 {
-			lastUser, ok, err = b.storage.LoadUser(st[0].Author.ID)
-			if err != nil {
-				fmt.Printf("Unable to load last user %s: %v\n", st[0].Author.ID, err)
-				return
-			}
-			if !ok {
-				return // user doesn't exist...
-			}
-		}
-	}
-
-	author, ok, err := b.storage.LoadUser(m.Author.ID)
-	if err != nil {
-		fmt.Printf("Unable to load author user %s: %v\n", m.Author.ID, err)
-		return
-	}
-
-	if !ok {
-		author, err = CovidSim.NewCovidUser(m.Author)
-		if err != nil {
-			fmt.Printf("Unable to create author covid user %s: %v\n", m.Author.ID, err)
-			return
-		}
-	}
-
-	var contractedCovid bool
-	contractedCovid, err = author.ContractCovid(lastUser, m.GuildID, m.ChannelID, m.ID)
-	if err != nil {
-		fmt.Printf("Unable to contract covid for user %s from %s: %v\n", author.ID, lastUser.ID, err)
-		return
-	}
-
-	if contractedCovid {
-		go b.infectionHook(m, author)
-	}
-
-	if err := b.storage.SaveUser(author); err != nil {
-		fmt.Printf("Unable to save covid user %s: %v", author.ID, err)
-		return
-	}
-
-	b.lastUserByChannel[m.ChannelID] = author
-}
-
-func (b *Bot) wearingMask(userID string) (bool, error) {
-	img, err := b.session.UserAvatar(userID)
-	if err != nil {
-		return false, fmt.Errorf("wearingMask get user avatar: %w", err)
-	}
-
-	return mask.WearingMask(img), nil
-}
-
-func (b *Bot) getAvatar(u *discordgo.User) (string, image.Image, *apng.APNG, *gif.GIF, error) {
-	// TODO clean this up.
-	body, err := b.session.RequestWithBucketID("GET", u.AvatarURL("1024"), nil, discordgo.EndpointUserAvatar("", ""))
-	if err != nil {
-		return "", nil, nil, nil, err
-	}
-	var buf = bytes.NewBuffer(body)
-
-	// Is gif
-	if strings.HasPrefix(u.Avatar, "a_") {
-		g, err := gif.DecodeAll(buf)
-		return "gif", nil, nil, g, err
-	}
-
-	img, f, err := image.Decode(buf)
-	return f, img, nil, nil, err
-}
-
-func (b *Bot) doShtatus(s *discordgo.Session, m *discordgo.MessageCreate) {
-	var statUser *discordgo.User
-
-	parts := strings.SplitN(m.Content, " ", 2)
-	if len(parts) != 2 {
-		if len(parts) == 1 {
-			statUser = m.Author
-		} else {
-			_, _ = s.ChannelMessage(m.ChannelID, "!shtatus @someone")
-			return
-		}
-	} else {
-		id := parts[1]
-		if strings.HasPrefix(id, "<@") {
-			id = strings.TrimPrefix("<@", strings.TrimSuffix(id, ">"))
-		}
-
-		var err error
-		statUser, err = s.User(id)
-		if err != nil {
-			s.ChannelMessage(m.ChannelID, err.Error())
-			return
-		}
-	}
-
-	u, _, err := b.storage.LoadUser(statUser.ID)
-	if err != nil {
-		s.ChannelMessage(m.ChannelID, err.Error())
-		return
-	}
-
-	wearingMask, err := b.wearingMask(statUser.ID)
-	if err != nil {
-		s.ChannelMessage(m.ChannelID, err.Error())
-		return
-	}
-
-	msgContents := `
-UserID: %s
-WearingMask: %t
-HasCorona: %t
-Contracted By (id): %s
-Contracted On: %s`
-	s.ChannelMessageSend(m.ChannelID, fmt.Sprintf(
-		msgContents,
-		statUser.ID,
-		wearingMask,
-		!u.ContractionTime.IsZero(),
-		u.ContractedBy,
-		u.ContractionTime.Format(time.RFC3339),
-	))
-}
-
-func (b *Bot) infectThy() {
-	covidUser, ok, err := b.storage.LoadUser("105484726235607040")
-	if err != nil {
-		fmt.Println("Infecting thy load user: ", err)
-		return
-	}
-
-	if ok && !covidUser.ContractionTime.IsZero() {
-		return
-	}
-
-	user, err := b.session.User("105484726235607040")
-	if err != nil {
-		fmt.Printf("Thy not here? %v\n", err)
-	} else {
-		covUser, _ := CovidSim.NewCovidUser(user)
-		covUser.ContractionTime = time.Now()
-		covUser.ContractedBy = "1"
-		covUser.ContractedChannel = "1"
-		covUser.ContractedMessage = "1"
-		covUser.CovidEncounter = 1
-
-		if err := b.storage.SaveUser(covUser); err != nil {
-			fmt.Printf("Can't save thy's infection :( %v", err)
-		}
+		// Don't tell the user lol.
+		l.Err(err).Str("user_id", id).Msg("messageCommandHandler: store cooldown.")
 	}
 }
 

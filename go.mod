@@ -11,6 +11,7 @@ require (
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/kettek/apng v0.0.0-20191108220231-414630eed80f
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/rs/zerolog v1.20.0
 	github.com/vitali-fedulov/images v0.0.0-20200831232703-8a90db96a358
 	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5 // indirect
 	gorm.io/driver/mysql v1.0.3
