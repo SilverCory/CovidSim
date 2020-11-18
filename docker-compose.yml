@@ -1,17 +1,35 @@
 version: "3.8"
 services:
-  covidsim:
+  covidsim-web:
     depends_on:
       - redis
       - mariadb
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.web
     env_file:
       - .env
-    command: ["/wait-for-it.sh", "mariadb:3306", "--", "/go/bin/covidsimbot"]
+    ports:
+      - "8080:8080"
+    command: [ "/wait-for-it.sh", "mariadb:3306", "--", "/go/bin/covidbot-web" ]
     restart: on-failure
+
+  covidsim-bot:
+    depends_on:
+      - redis
+      - mariadb
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    env_file:
+      - .env
+    command: ["/wait-for-it.sh", "mariadb:3306", "--", "/go/bin/covidbot-bot"]
+    restart: on-failure
+
   redis:
     image: "redis:alpine"
     restart: on-failure
+
   mariadb:
     image: mariadb:10.2
     environment:

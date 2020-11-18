@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/SilverCory/CovidSim/cache"
-	"github.com/SilverCory/CovidSim/discord"
+	"github.com/SilverCory/CovidSim/config"
 	"github.com/SilverCory/CovidSim/storage"
-	"github.com/caarlos0/env/v6"
+	"github.com/SilverCory/CovidSim/web"
 	"github.com/rs/zerolog"
 	"os"
 	"os/signal"
@@ -14,11 +14,11 @@ import (
 
 func main() {
 	var l = zerolog.New(os.Stderr).With().Timestamp().Logger()
-	l.Info().Msg("Spreading 'rona...")
+	l.Info().Msg("Spreading fear about 'rona...")
 
-	var cfg = Config{}
-	if err := env.Parse(&cfg); err != nil {
-		l.Error().Err(err).Msg("unable to parse env.")
+	cfg, err := config.Get()
+	if err != nil {
+		l.Error().Err(err).Msg("unable to load configuration.")
 		os.Exit(1)
 		return
 	}
@@ -37,19 +37,9 @@ func main() {
 		return
 	}
 
-	bot, err := discord.NewBot(
-		l,
-		cfg.DiscordBotToken,
-		store,
-		ca,
-		cfg.DiscordWebhookID,
-		cfg.DiscordWebhookToken,
-	)
-	if err != nil {
-		l.Error().Err(err).Msg("unable to open discord bot.")
-		os.Exit(1)
-		return
-	}
+	// TODO webserver.
+	server, err := web.NewServer(l, store)
+	server.Start(cfg.HTTPServerAddr)
 
 	l.Info().Msg("Done!")
 	fmt.Println("Waiting for interrupt.")
@@ -61,8 +51,9 @@ func main() {
 		l.Error().Err(err).Msg("unable to close cache.")
 	}
 
-	if err := bot.Close(); err != nil {
-		l.Error().Err(err).Msg("unable to close discord bot.")
+	if err := server.Close(); err != nil {
+		l.Error().Err(err).Msg("unable to close web server.")
 	}
+
 	fmt.Println("Cya!!!")
 }

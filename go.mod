@@ -4,9 +4,9 @@ go 1.15
 
 require (
 	github.com/bwmarrin/discordgo v0.22.0
-	github.com/caarlos0/env/v6 v6.4.0 // indirect
+	github.com/caarlos0/env/v6 v6.4.0
 	github.com/fogleman/gg v1.3.0
-	github.com/gin-gonic/gin v1.6.3 // indirect
+	github.com/gin-gonic/gin v1.6.3
 	github.com/go-redis/redis/v8 v8.3.3
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/kettek/apng v0.0.0-20191108220231-414630eed80f
