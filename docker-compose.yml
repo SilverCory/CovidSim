@@ -1,6 +1,6 @@
 version: "3.8"
 services:
-  covidsim-web:
+  web:
     depends_on:
       - redis
       - mariadb
@@ -14,7 +14,7 @@ services:
     command: [ "/wait-for-it.sh", "mariadb:3306", "--", "/go/bin/covidbot-web" ]
     restart: on-failure
 
-  covidsim-bot:
+  bot:
     depends_on:
       - redis
       - mariadb

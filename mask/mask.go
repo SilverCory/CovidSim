@@ -13,6 +13,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"math"
 	"strings"
 )
 
@@ -36,15 +37,17 @@ func WearingMask(source image.Image) bool {
 
 func AddMask(source image.Image) image.Image {
 	var ctx = gg.NewContextForImage(source)
+	halfWidth := math.Floor(float64(ctx.Width()) / 2.0)
+	halfHeight := math.Floor(float64(ctx.Height()) / 2.0)
 	ctx.DrawImage(
 		resize.Resize(
-			uint(ctx.Width()),
-			uint(ctx.Height()),
+			uint(halfWidth),
+			uint(halfHeight),
 			maskImage,
 			resize.Bicubic,
 		),
-		0,
-		0,
+		int(math.Floor(halfWidth/2.0)),
+		int(float64(ctx.Height())-halfHeight),
 	)
 
 	return ctx.Image()
