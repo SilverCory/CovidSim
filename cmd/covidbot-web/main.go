@@ -6,6 +6,7 @@ import (
 	"github.com/SilverCory/CovidSim/config"
 	"github.com/SilverCory/CovidSim/storage"
 	"github.com/SilverCory/CovidSim/web"
+	"github.com/go-redis/redis/v8"
 	"github.com/rs/zerolog"
 	"os"
 	"os/signal"
@@ -30,16 +31,24 @@ func main() {
 		return
 	}
 
-	ca, err := cache.NewRedis(cfg.RedisAddress, cfg.RedisUsername, cfg.RedisPassword, cfg.RedisDB)
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisAddress,
+		Username: cfg.RedisUsername,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
+	})
+
+	ca, err := cache.NewRedis(l, rdb)
 	if err != nil {
 		l.Error().Err(err).Msg("unable to open cache.")
 		os.Exit(1)
 		return
 	}
 
-	// TODO webserver.
-	server, err := web.NewServer(l, store)
-	server.Start(cfg.HTTPServerAddr)
+	server, err := web.NewServer(l, store, rdb, cfg)
+	if err := server.Start(cfg.HTTPServerAddr); err != nil {
+		l.Error().Err(err).Msgf("server.Start failed!")
+	}
 
 	l.Info().Msg("Done!")
 	fmt.Println("Waiting for interrupt.")

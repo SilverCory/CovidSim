@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/SilverCory/CovidSim"
 	"github.com/go-redis/redis/v8"
+	"github.com/rs/zerolog"
 	"image"
 	"time"
 )
@@ -24,14 +25,8 @@ type Redis struct {
 	client *redis.Client
 }
 
-func NewRedis(addr, username, password string, db int) (*Redis, error) {
+func NewRedis(_ zerolog.Logger, rdb *redis.Client) (*Redis, error) {
 	var ret = new(Redis)
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Username: username,
-		Password: password,
-		DB:       db,
-	})
 
 	res := rdb.Ping(context.Background())
 	if err := res.Err(); err != nil {
