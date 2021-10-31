@@ -53,18 +53,18 @@ func AddMask(source image.Image) image.Image {
 	return ctx.Image()
 }
 
-func AddMaskGIF(source *gif.GIF) *gif.GIF {
+func AddMask(source *gif.GIF) *gif.GIF {
 	var buf = new(bytes.Buffer)
 	var opts = new(gif.Options)
 	for i, img := range source.Image {
 		err := gif.Encode(buf, AddMask(img), opts)
 		if err != nil {
-			// TODO Blah
+			panic(err)
 		}
 
 		out, err := gif.Decode(buf)
 		if err != nil {
-			// TODO blah
+			panic(err)
 		}
 
 		source.Image[i] = out.(*image.Paletted)
